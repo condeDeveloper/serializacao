@@ -1,0 +1,56 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ${{ matrix.so }}
+
+    # bash nos tres sistemas: no Windows o shell padrao e o PowerShell, e ele
+    # desmonta "-Dexec.args=..." em dois argumentos antes de o Maven ver.
+    defaults:
+      run:
+        shell: bash
+
+    strategy:
+      fail-fast: false
+      matrix:
+        so: [ubuntu-latest, windows-latest, macos-latest]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+          cache: maven
+
+      - name: Testes
+        run: mvn -B -ntp verify
+
+      - name: toda ida e volta devolve o mesmo valor
+        run: mvn -B -ntp -q exec:java -Dexec.args="volta"
+
+      - name: quantos bytes cada formato gasta
+        run: mvn -B -ntp -q exec:java -Dexec.args="tamanho"
+
+      - name: o numero negativo que custa dez bytes
+        run: mvn -B -ntp -q exec:java -Dexec.args="negativos"
+
+      - name: o que sobrevive a uma mudanca de esquema
+        run: mvn -B -ntp -q exec:java -Dexec.args="evolucao"
+
+      - name: o tamanho num conjunto de registros de verdade
+        run: mvn -B -ntp -q exec:java -Dexec.args="real"
+
+      - name: Relatorios de teste
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: surefire-reports-${{ matrix.so }}
+          path: target/surefire-reports
